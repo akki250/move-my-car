@@ -107,11 +107,12 @@ function QrCard({ qr, onChange }: { qr: QrCode; onChange: () => void }) {
   const update = useUpdateQrCode();
   const remove = useDeleteQrCode();
   const [copied, setCopied] = useState(false);
-  const publicUrl = `${window.location.origin}/scan/${qr.id}`;
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const publicUrl = `${window.location.origin}${basePath}/scan/${qr.id}`;
   const toggle = () => update.mutate({ id: qr.id, data: { active: !qr.active } }, { onSuccess: onChange });
   const copy = async () => { await navigator.clipboard?.writeText(publicUrl); setCopied(true); setTimeout(() => setCopied(false), 1600); };
   const del = () => { if (window.confirm(`Delete "${qr.label}"?`)) remove.mutate({ id: qr.id }, { onSuccess: onChange }); };
-  return <article className={`qr-card ${!qr.active ? "inactive" : ""}`}><div className="qr-visual"><QrIcon size={52} strokeWidth={1.2} /><span>SCAN</span></div><div className="qr-info"><div className="qr-title-row"><div><h3>{qr.label}</h3><p>{qr.location}</p></div><span className={qr.active ? "badge active" : "badge"}>{qr.active ? "Active" : "Paused"}</span></div><div className="qr-meta"><span><Activity size={14} /> Created {new Date(qr.createdAt).toLocaleDateString()}</span><span><Link2 size={14} /> /scan/{qr.id}</span></div><div className="qr-actions"><button className="button small outline" onClick={copy}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? "Copied" : "Copy link"}</button><button className="button small ghost" onClick={toggle}>{qr.active ? "Pause" : "Activate"}</button><button className="icon-button danger" onClick={del} aria-label="Delete"><Trash2 size={15} /></button></div></div></article>;
+  return <article className={`qr-card ${!qr.active ? "inactive" : ""}`}><div className="qr-visual"><QrIcon size={52} strokeWidth={1.2} /><span>SCAN</span></div><div className="qr-info"><div className="qr-title-row"><div><h3>{qr.label}</h3><p>{qr.location}</p></div><span className={qr.active ? "badge active" : "badge"}>{qr.active ? "Active" : "Paused"}</span></div><div className="qr-meta"><span><Activity size={14} /> Created {new Date(qr.createdAt).toLocaleDateString()}</span><span><Link2 size={14} /> /scan/{qr.id}</span></div><div className="qr-actions"><a className="button small outline" href={publicUrl}><ExternalLink size={14} /> View page</a><button className="button small outline" onClick={copy}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? "Copied" : "Copy link"}</button><button className="button small ghost" onClick={toggle}>{qr.active ? "Pause" : "Activate"}</button><button className="icon-button danger" onClick={del} aria-label="Delete"><Trash2 size={15} /></button></div></div></article>;
 }
 
 function Dashboard({ user, onLogout }: { user: string; onLogout: () => void }) {
