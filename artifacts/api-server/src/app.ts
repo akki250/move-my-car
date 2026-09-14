@@ -1,11 +1,11 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import { clerkMiddleware } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { pool } from "@workspace/db";
+import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware";
 
 const app: Express = express();
 
@@ -28,26 +28,17 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const PgSession = connectPgSimple(session);
-if (!process.env.SESSION_SECRET) {
-  throw new Error("SESSION_SECRET is required");
-}
 app.use(
-  session({
-    store: new PgSession({ pool, createTableIfMissing: false }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    },
-  }),
+  clerkMiddleware((req) => ({
+    publishableKey: publishableKeyFromHost(
+      getClerkProxyHost(req) ?? "",
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+  })),
 );
 
 app.use("/api", router);

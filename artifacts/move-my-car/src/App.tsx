@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from "@clerk/react";
+import { publishableKeyFromHost } from "@clerk/react/internal";
+import { shadcn } from "@clerk/themes";
 import {
   getGetCurrentUserQueryKey, getGetSettingsQueryKey, getGetStatsQueryKey,
   getListQrCodesQueryKey, getListScanLogsQueryKey, getListUsersQueryKey,
-  useCreateQrCode, useCreateUser, useDeleteQrCode, useDeleteUser, useGetCurrentUser,
+  useCreateQrCode, useDeleteQrCode, useDeleteUser,
   useGetSettings, useGetStats, useListQrCodes, useListScanLogs, useListUsers,
-  useLogScan, useLogScanAction, useLogin, useLogout, useRegister, useUpdateQrCode, useUpdateSettings,
+  useLogScan, useLogScanAction, useUpdateQrCode, useUpdateSettings,
 } from "@workspace/api-client-react";
 import { type QrCode } from "@workspace/api-client-react";
 import { Route, Switch, useLocation, useRoute, Router as WouterRouter } from "wouter";
@@ -17,6 +20,51 @@ import {
 import { ErrorBoundary } from "@/components/error-boundary";
 
 const queryClient = new QueryClient();
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: "clerk",
+  options: {
+    logoPlacement: "inside" as const,
+    logoLinkUrl: basePath || "/",
+    logoImageUrl: `${window.location.origin}${basePath}/favicon.svg`,
+  },
+  variables: {
+    colorPrimary: "#214e45",
+    colorForeground: "#193730",
+    colorMutedForeground: "#789088",
+    colorDanger: "#b4594d",
+    colorBackground: "#ffffff",
+    colorInput: "#fbfdfb",
+    colorInputForeground: "#23423a",
+    colorNeutral: "#d6e1d7",
+    fontFamily: "DM Sans",
+    borderRadius: "0.6rem",
+  },
+  elements: {
+    cardBox: "bg-white rounded-2xl w-[440px] max-w-full overflow-hidden",
+    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    headerTitle: "text-[#193730]",
+    headerSubtitle: "text-[#789088]",
+    socialButtonsBlockButtonText: "text-[#36564e]",
+    formFieldLabel: "text-[#426158]",
+    footerActionLink: "text-[#4f805f]",
+    footerActionText: "text-[#789088]",
+    dividerText: "text-[#789088]",
+    formButtonPrimary: "bg-[#214e45] hover:bg-[#2d6258]",
+    formFieldInput: "border-[#d6e1d7] bg-[#fbfdfb] text-[#23423a]",
+    socialButtonsBlockButton: "border-[#d7e2d8] bg-white",
+    logoBox: "mb-4",
+    main: "bg-transparent",
+  },
+};
 
 function errMessage(error: unknown) {
   const data = (error as { data?: { error?: string } })?.data;
@@ -30,81 +78,21 @@ function Brand() {
 function LandingPage() {
   const [, navigate] = useLocation();
   return <main className="landing-page">
-    <header className="landing-nav"><Brand /><div className="landing-nav-actions"><button className="button small outline" onClick={() => navigate("/login")}>Log in</button><button className="button small primary" onClick={() => navigate("/register")}>Create account</button></div></header>
+    <header className="landing-nav"><Brand /><div className="landing-nav-actions"><button className="button small outline" onClick={() => navigate("/sign-in")}>Log in</button><button className="button small primary" onClick={() => navigate("/sign-up")}>Create account</button></div></header>
     <section className="landing-hero">
-      <div className="landing-copy"><p className="eyebrow">Private vehicle contact</p><h1>Make your car <em>easy to reach.</em></h1><p className="landing-lede">A simple QR sticker lets someone contact you about your vehicle without putting your personal number on display.</p><div className="landing-actions"><button className="button primary" onClick={() => navigate("/register")}>Get started <ArrowRight size={16} /></button><button className="button outline" onClick={() => navigate("/login")}>Log in to dashboard</button></div><div className="landing-trust"><ShieldCheck size={15} /> Your contact details stay private</div></div>
+      <div className="landing-copy"><p className="eyebrow">Private vehicle contact</p><h1>Make your car <em>easy to reach.</em></h1><p className="landing-lede">A simple QR sticker lets someone contact you about your vehicle without putting your personal number on display.</p><div className="landing-actions"><button className="button primary" onClick={() => navigate("/sign-up")}>Get started <ArrowRight size={16} /></button><button className="button outline" onClick={() => navigate("/sign-in")}>Log in to dashboard</button></div><div className="landing-trust"><ShieldCheck size={15} /> Your contact details stay private</div></div>
       <div className="landing-preview"><div className="preview-window"><div className="preview-top"><span /><span /><span /></div><div className="preview-content"><div className="preview-qr"><QrIcon size={52} /></div><p className="eyebrow">Move My Car</p><h2>Need to reach the owner?</h2><p>Choose a call or text. No number shown.</p><div className="preview-button"><Phone size={14} /> Call owner <ArrowRight size={14} /></div><div className="preview-button light"><Smartphone size={14} /> Text owner <ArrowRight size={14} /></div></div></div></div>
     </section>
     <section className="landing-features"><div><div className="feature-icon blue"><QrIcon size={17} /></div><h3>One sticker per car</h3><p>Create and manage QR codes for every vehicle.</p></div><div><div className="feature-icon lime"><ShieldCheck size={17} /></div><h3>Privacy first</h3><p>Keep your phone number off the sticker and public page.</p></div><div><div className="feature-icon orange"><Activity size={17} /></div><h3>Know when it happens</h3><p>See scans and contact attempts from your dashboard.</p></div></section>
   </main>;
 }
 
-function LoginPage() {
-  const [, navigate] = useLocation();
-  const login = useLogin();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault(); setError("");
-    if (!username || !password) { setError("Enter your username and password."); return; }
-    login.mutate({ data: { username, password } }, {
-      onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); navigate("/"); },
-      onError: (e) => setError(errMessage(e)),
-    });
-  };
-  return <main className="auth-page">
-    <div className="auth-glow" />
-    <section className="auth-card">
-      <Brand />
-      <button className="back-link" onClick={() => navigate("/")}><ArrowRight size={14} /> Back to home</button>
-      <div className="auth-intro"><p className="eyebrow">Welcome back</p><h1>Sign in to your <em>dashboard.</em></h1><p>Manage your QR stickers and see when someone needs to reach you.</p></div>
-      <form onSubmit={submit} className="form-stack">
-        <label>Username<input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your username" /></label>
-        <label>Password<input autoComplete="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" /></label>
-        {error && <div className="form-error">{error}</div>}
-        <button className="button primary wide" disabled={login.isPending}>{login.isPending ? "Signing in…" : "Sign in"} <ArrowRight size={16} /></button>
-      </form>
-      <p className="auth-switch">New here? <button onClick={() => navigate("/register")}>Create an account</button></p>
-      <div className="auth-foot"><ShieldCheck size={15} /> Private by design. Your phone number stays hidden.</div>
-    </section>
-  </main>;
+function ClerkSignInPage() {
+  return <main className="auth-page clerk-auth-page"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></main>;
 }
 
-function RegisterPage() {
-  const [, navigate] = useLocation();
-  const register = useRegister();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault(); setError("");
-    if (username.trim().length < 3) { setError("Username must be at least 3 characters."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
-    if (password !== confirm) { setError("Passwords do not match."); return; }
-    register.mutate({ data: { username, password } }, {
-      onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); navigate("/"); },
-      onError: (e) => setError(errMessage(e)),
-    });
-  };
-  return <main className="auth-page">
-    <div className="auth-glow" />
-    <section className="auth-card">
-      <Brand />
-      <button className="back-link" onClick={() => navigate("/")}><ArrowRight size={14} /> Back to home</button>
-      <div className="auth-intro"><p className="eyebrow">Get started</p><h1>Create your <em>dashboard.</em></h1><p>Set up your account and make your first vehicle contact sticker.</p></div>
-      <form onSubmit={submit} className="form-stack">
-        <label>Username<input autoComplete="username" required minLength={3} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Choose a username" /></label>
-        <label>Password<input autoComplete="new-password" required minLength={6} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" /></label>
-        <label>Confirm password<input autoComplete="new-password" required minLength={6} type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Enter it again" /></label>
-        {error && <div className="form-error">{error}</div>}
-        <button className="button primary wide" disabled={register.isPending}>{register.isPending ? "Creating account…" : "Create account"} <ArrowRight size={16} /></button>
-      </form>
-      <p className="auth-switch">Already have an account? <button onClick={() => navigate("/login")}>Sign in</button></p>
-      <div className="auth-foot"><ShieldCheck size={15} /> Private by design. Your phone number stays hidden.</div>
-    </section>
-  </main>;
+function ClerkSignUpPage() {
+  return <main className="auth-page clerk-auth-page"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></main>;
 }
 
 function Shell({ children, user, onLogout }: { children: React.ReactNode; user: string; onLogout: () => void }) {
