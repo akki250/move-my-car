@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Move My Car"
+description = "A secure QR vehicle contact dashboard where owners create printable QR codes and visitors can contact them without exposing private phone numbers."
+version = "1.0.0"
+id = "artifacts/move-my-car"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23903
+
+[services.development]
+run = "pnpm --filter @workspace/move-my-car run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/move-my-car", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/move-my-car/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23903"
+BASE_PATH = "/"

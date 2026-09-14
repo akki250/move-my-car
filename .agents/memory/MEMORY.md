@@ -1,0 +1,1 @@
+- [Session store setup](session-store-setup.md) — initialize the PostgreSQL session table explicitly before connect-pg-simple handles the first login.
