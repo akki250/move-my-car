@@ -41,6 +41,23 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LoginResult" }
         "401": { $ref: "#/components/responses/Error" }
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Create a dashboard account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserInput" }
+      responses:
+        "201":
+          description: Account created and logged in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResult" }
+        "409": { $ref: "#/components/responses/Error" }
   /auth/me:
     get:
       operationId: getCurrentUser

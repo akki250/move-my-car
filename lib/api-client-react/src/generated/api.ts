@@ -209,6 +209,77 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getLoginMutationOptions(options));
     }
 
+export const getRegisterUrl = () => {
+
+
+
+
+  return `/api/auth/register`
+}
+
+/**
+ * @summary Create a dashboard account
+ */
+export const register = async (userInput: UserInput, options?: Parameters<typeof customFetch>[1]): Promise<LoginResult> => {
+
+  return customFetch<LoginResult>(getRegisterUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof register>>, TError,{data: BodyType<UserInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof register>>, TError,{data: BodyType<UserInput>}, TContext> => {
+
+const mutationKey = ['register'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof register>>, {data: BodyType<UserInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  register(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterMutationResult = NonNullable<Awaited<ReturnType<typeof register>>>
+    export type RegisterMutationBody = BodyType<UserInput>
+    export type RegisterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a dashboard account
+ */
+export const useRegister = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof register>>, TError,{data: BodyType<UserInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof register>>,
+        TError,
+        {data: BodyType<UserInput>},
+        TContext
+      > => {
+      return useMutation(getRegisterMutationOptions(options));
+    }
+
 export const getGetCurrentUserUrl = () => {
 
 

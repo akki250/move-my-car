@@ -32,6 +32,26 @@ export const LoginResponse = zod.object({
 })
 
 
+/**
+ * @summary Create a dashboard account
+ */
+export const registerBodyUsernameMin = 3;
+
+export const registerBodyPasswordMin = 6;
+
+
+
+export const RegisterBody = zod.object({
+  "username": zod.string().min(registerBodyUsernameMin),
+  "password": zod.string().min(registerBodyPasswordMin)
+})
+
+export const RegisterResponse = zod.object({
+  "ok": zod.boolean(),
+  "username": zod.string()
+})
+
+
 export const GetCurrentUserResponse = zod.object({
   "authenticated": zod.boolean(),
   "userId": zod.number().nullish(),

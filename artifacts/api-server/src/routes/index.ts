@@ -38,6 +38,29 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   res.json({ ok: true, username: user.username });
 });
 
+router.post("/auth/register", async (req, res): Promise<void> => {
+  const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (username.length < 3 || password.length < 6) {
+    res.status(400).json({ error: "Username must be 3+ characters and password 6+ characters" });
+    return;
+  }
+  try {
+    const [user] = await db.insert(usersTable).values({
+      username,
+      passwordHash: await bcrypt.hash(password, 12),
+    }).returning({ id: usersTable.id, username: usersTable.username });
+    await new Promise<void>((resolve, reject) => req.session.regenerate((error) => error ? reject(error) : resolve()));
+    req.session.isAuthenticated = true;
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    await new Promise<void>((resolve, reject) => req.session.save((error) => error ? reject(error) : resolve()));
+    res.status(201).json({ ok: true, username: user.username });
+  } catch {
+    res.status(409).json({ error: "Username already exists" });
+  }
+});
+
 router.get("/auth/me", (req, res) => {
   res.json({ authenticated: Boolean(req.session.isAuthenticated && req.session.userId), userId: req.session.userId ?? null, username: req.session.username ?? null });
 });
