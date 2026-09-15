@@ -1,14 +1,10 @@
+import type { Socket } from "node:net";
 import app from "./app";
 import { logger } from "./lib/logger";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+// The platform injects PORT in production; in development it isn't set, so
+// default to 3000 — the port the preview proxy forwards to.
+const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
@@ -16,13 +12,28 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function start() {
-  app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
+  if (process.env.NODE_ENV === "production") {
+    app.listen(port, () => logger.info({ port }, "Server listening"));
+    return;
   }
 
-  logger.info({ port }, "Server listening");
+  // Development: serve the Vite frontend through this same port so the single
+  // exposed dev server delivers both the UI and the /api routes.
+  const { startFrontendProxy, waitForFrontend } = await import("./dev-frontend");
+  const proxy = startFrontendProxy();
+
+  app.use((req, res, next) => {
+    if (req.path === "/api" || req.path.startsWith("/api/")) return next();
+    return proxy(req, res, next);
+  });
+
+  await waitForFrontend();
+
+  const server = app.listen(port, () =>
+    logger.info({ port }, "Server listening (dev) — proxying frontend"),
+  );
+  server.on("upgrade", (req, socket, head) => {
+    proxy.upgrade?.(req, socket as Socket, head);
   });
 }
 
